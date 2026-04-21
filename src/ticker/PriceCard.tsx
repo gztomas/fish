@@ -1,42 +1,42 @@
-import { chartPrices as chartPricesQueries, currentPrice } from "@/api/queries";
-import type { TimeFrame } from "@/api/types";
-import { TickerSelector } from "@/ticker/TickerSelector";
-import { TimeFrameSelector } from "@/ticker/TimeFrameSelector";
-import { Button } from "@/ui/button";
-import { Card, CardContent, CardHeader } from "@/ui/card";
-import { useQuery } from "@tanstack/react-query";
+import { useAtom, useAtomValue } from "jotai";
+import { useState, type ReactNode } from "react";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { Alert02Icon } from "@hugeicons/core-free-icons";
-import { useState, type ReactNode } from "react";
+
+import {
+  chartStatsAtom,
+  currentPriceAtom,
+  isOfflineAtom,
+  isRefreshingAtom,
+  klinesStateAtom,
+  liveStatsAtom,
+  symbolAtom,
+  timeFrameAtom,
+} from "@/api/atoms";
+import { retryKlinesBackfill, useStreamSync } from "@/api/useStreamSync";
+import type { TimeFrame } from "@/api/types";
+import { Button } from "@/ui/button";
+import { Card, CardContent, CardHeader } from "@/ui/card";
+
 import { HoverDetail, type BrushRange, type HoverPoint } from "./HoverDetail";
 import { PriceChart } from "./PriceChart";
 import { PriceHeader, TickerLabel } from "./PriceHeader";
-import { computeChartStats, computeLiveChartStats } from "./stats";
 import { StatsPanel } from "./StatsPanel";
-import { findTicker, type Ticker, type TickerSymbol } from "./tickers";
-import { useTickerParam } from "./useTickerParam";
-import { useTimeFrameParam } from "./useTimeFrameParam";
-
-const CURRENT_PRICE_REFETCH_MS = 5_000;
-
-const CHART_REFETCH_INTERVALS: Record<TimeFrame, number> = {
-  DAY: 30_000,
-  WEEK: 60_000,
-  MONTH: 120_000,
-  YEAR: 300_000,
-  ALL: 300_000,
-};
+import { findTicker, type Ticker } from "./tickers";
+import { TickerSelector } from "./TickerSelector";
+import { TimeFrameSelector } from "./TimeFrameSelector";
 
 /**
- * Layout-only orchestrator: owns shared interaction state and composes
- * three data-owning children that don't know about each other.
- * `ChartPanel` owns the chart query; `LivePriceHeader` and `LiveStats`
- * own the price tick and share the chart cache via react-query (same
- * query key, one fetch). The chart is never touched by the 5s tick.
+ * Layout-only orchestrator. `useStreamSync` runs once here and drives
+ * the atoms everything else reads from; the three data-owning children
+ * subscribe at the finest grain their view needs, so the chart doesn't
+ * re-render on miniTicker ticks and the header doesn't re-render on
+ * every kline update.
  */
 export function PriceCard() {
-  const [symbol, setSymbol] = useTickerParam();
-  const [timeFrame, setTimeFrame] = useTimeFrameParam();
+  useStreamSync();
+  const [symbol, setSymbol] = useAtom(symbolAtom);
+  const [timeFrame, setTimeFrame] = useAtom(timeFrameAtom);
   const [hoverPoint, setHoverPoint] = useState<HoverPoint | null>(null);
   const [brushRange, setBrushRange] = useState<BrushRange | null>(null);
   const ticker = findTicker(symbol);
@@ -45,7 +45,6 @@ export function PriceCard() {
     <Card className="w-full gap-6 py-6">
       <CardHeader className="gap-4 px-6">
         <LivePriceHeader
-          symbol={symbol}
           ticker={ticker}
           timeFrame={timeFrame}
           tickerSelector={
@@ -66,50 +65,37 @@ export function PriceCard() {
 
       <CardContent className="space-y-6 px-6">
         <ChartPanel
-          symbol={symbol}
           ticker={ticker}
           timeFrame={timeFrame}
           brushRange={brushRange}
           onHoverChange={setHoverPoint}
           onBrushChange={setBrushRange}
         />
-        <LiveStats symbol={symbol} timeFrame={timeFrame} />
+        <LiveStats timeFrame={timeFrame} />
       </CardContent>
     </Card>
   );
 }
 
 function LivePriceHeader({
-  symbol,
   ticker,
   timeFrame,
   tickerSelector,
   timeFrameSelector,
   hoverDetail,
 }: {
-  symbol: TickerSymbol;
   ticker: Ticker;
   timeFrame: TimeFrame;
   tickerSelector: ReactNode;
   timeFrameSelector: ReactNode;
   hoverDetail: ReactNode;
 }) {
-  const priceQuery = usePriceQuery(symbol);
-  const chartQuery = useChartQuery(symbol, timeFrame);
+  const currentPrice = useAtomValue(currentPriceAtom);
+  const liveStats = useAtomValue(liveStatsAtom);
+  const isOffline = useAtomValue(isOfflineAtom);
+  const isRefreshing = useAtomValue(isRefreshingAtom);
 
-  const currentMid = priceQuery.data ? Number(priceQuery.data.mid) : null;
-
-  // No retries + 15s client timeout → `isError` is a timely offline signal.
-  const isOffline = priceQuery.isError;
-  const isRefreshing =
-    (priceQuery.isFetching && !priceQuery.isLoading) ||
-    (chartQuery.isFetching && !chartQuery.isLoading);
-
-  const liveStats = computeLiveChartStats(
-    chartQuery.data,
-    priceQuery.data,
-    isOffline,
-  );
+  const currentMid = currentPrice ? Number(currentPrice.mid) : null;
 
   return (
     <>
@@ -133,93 +119,51 @@ function LivePriceHeader({
 }
 
 function ChartPanel({
-  symbol,
   ticker,
   timeFrame,
   brushRange,
   onHoverChange,
   onBrushChange,
 }: {
-  symbol: TickerSymbol;
   ticker: Ticker;
   timeFrame: TimeFrame;
   brushRange: BrushRange | null;
   onHoverChange: (point: HoverPoint | null) => void;
   onBrushChange: (range: BrushRange | null) => void;
 }) {
-  const chartQuery = useChartQuery(symbol, timeFrame);
+  const klinesState = useAtomValue(klinesStateAtom);
+  const baseStats = useAtomValue(chartStatsAtom);
+  const symbol = useAtomValue(symbolAtom);
 
-  if (chartQuery.error && !chartQuery.data) {
+  if (klinesState.status === "error") {
     return (
       <ErrorState
-        message={chartQuery.error.message}
-        onRetry={() => void chartQuery.refetch()}
+        message={klinesState.error.message}
+        onRetry={() => retryKlinesBackfill(symbol, timeFrame)}
       />
     );
   }
-
-  if (chartQuery.isLoading && !chartQuery.data) {
+  if (klinesState.status !== "success") {
     return <LoadingState />;
   }
 
-  if (!chartQuery.data) return null;
-
-  const baseStats = computeChartStats(chartQuery.data);
-
   return (
-    <>
-      <PriceChart
-        points={chartQuery.data}
-        stats={baseStats}
-        timeFrame={timeFrame}
-        ticker={ticker}
-        brushRange={brushRange}
-        onHoverChange={onHoverChange}
-        onBrushChange={onBrushChange}
-      />
-      {chartQuery.error && (
-        <div className="flex items-center gap-2 text-xs text-destructive">
-          <HugeiconsIcon icon={Alert02Icon} className="size-3.5" />
-          Last chart refresh failed: {chartQuery.error.message}
-        </div>
-      )}
-    </>
+    <PriceChart
+      points={klinesState.data}
+      stats={baseStats}
+      timeFrame={timeFrame}
+      ticker={ticker}
+      brushRange={brushRange}
+      onHoverChange={onHoverChange}
+      onBrushChange={onBrushChange}
+    />
   );
 }
 
-function LiveStats({
-  symbol,
-  timeFrame,
-}: {
-  symbol: TickerSymbol;
-  timeFrame: TimeFrame;
-}) {
-  const priceQuery = usePriceQuery(symbol);
-  const chartQuery = useChartQuery(symbol, timeFrame);
-  const liveStats = computeLiveChartStats(
-    chartQuery.data,
-    priceQuery.data,
-    priceQuery.isError,
-  );
+function LiveStats({ timeFrame }: { timeFrame: TimeFrame }) {
+  const liveStats = useAtomValue(liveStatsAtom);
   if (!liveStats) return null;
   return <StatsPanel stats={liveStats} timeFrame={timeFrame} />;
-}
-
-function usePriceQuery(symbol: TickerSymbol) {
-  return useQuery({
-    ...currentPrice.queryOptions(symbol),
-    refetchInterval: CURRENT_PRICE_REFETCH_MS,
-    staleTime: CURRENT_PRICE_REFETCH_MS,
-  });
-}
-
-function useChartQuery(symbol: TickerSymbol, timeFrame: TimeFrame) {
-  const ms = CHART_REFETCH_INTERVALS[timeFrame];
-  return useQuery({
-    ...chartPricesQueries.queryOptions(symbol, timeFrame),
-    refetchInterval: ms,
-    staleTime: ms,
-  });
 }
 
 function LoadingState() {

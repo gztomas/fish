@@ -1,4 +1,4 @@
-import type { Page, Route } from "@playwright/test";
+import type { Page, Route, WebSocketRoute } from "@playwright/test";
 import type { TimeFrame } from "../src/api/types";
 
 export type MockPricePoint = {
@@ -20,15 +20,19 @@ export type RouteInterceptOptions = {
   bySymbol?: Record<string, PriceBundleMock>;
   // Fallback when nothing more specific matches.
   defaultBundle?: PriceBundleMock;
-  // Fail the first N ticker/price requests, then serve the real mock.
-  failCurrentPrice?: number;
   // Fail the first N klines requests per timeframe, then serve the mock.
   failChart?: Partial<Record<TimeFrame, number>>;
 };
 
-const BINANCE_URL = /^https:\/\/api\.binance\.com\//;
+export type SubscribeLogEntry = { method: string; streams: string[] };
+export type BinanceMockHandle = {
+  subscribes: SubscribeLogEntry[];
+};
 
-// Keep in sync with CHART_PARAMS in src/api/queries.ts.
+const BINANCE_REST_URL = /^https:\/\/api\.binance\.com\//;
+const BINANCE_WS_URL = /^wss:\/\/stream\.binance\.com:9443\//;
+
+// Keep in sync with CHART_PARAMS in src/api/rest.ts.
 const INTERVAL_TO_TIMEFRAME: Record<string, TimeFrame> = {
   "5m": "DAY",
   "1h": "WEEK",
@@ -37,14 +41,6 @@ const INTERVAL_TO_TIMEFRAME: Record<string, TimeFrame> = {
   "1w": "ALL",
 };
 
-function tickerResponse(symbol: string, bundle: PriceBundleMock) {
-  return { symbol, price: bundle.currentMid.toFixed(2) };
-}
-
-// Binance kline: [openTime, open, high, low, close, volume, closeTime,
-// quoteVolume, trades, takerBuyBase, takerBuyQuote, ignore]. The app
-// only reads openTime and close, but we fill the rest with plausible
-// values so the shape matches real responses.
 function klinesResponse(bundle: PriceBundleMock) {
   const sorted = [...bundle.chartPrices].sort(
     (a, b) => toMs(a.datetime) - toMs(b.datetime),
@@ -52,6 +48,7 @@ function klinesResponse(bundle: PriceBundleMock) {
   return sorted.map((p) => {
     const openTime = toMs(p.datetime);
     const price = p.rate.toFixed(2);
+    // [openTime, open, high, low, close, volume, closeTime, ...].
     return [
       openTime,
       price,
@@ -96,85 +93,109 @@ function resolveBundle(
   );
 }
 
+function miniTickerMessage(symbol: string, bundle: PriceBundleMock) {
+  return {
+    stream: `${symbol.toLowerCase()}@miniTicker`,
+    data: {
+      e: "24hrMiniTicker",
+      E: Date.now(),
+      s: symbol,
+      c: bundle.currentMid.toFixed(2),
+    },
+  };
+}
+
 export async function mockBinanceApi(
   page: Page,
   options: RouteInterceptOptions,
-) {
-  let currentPriceFailuresLeft = options.failCurrentPrice ?? 0;
+): Promise<BinanceMockHandle> {
+  const subscribes: SubscribeLogEntry[] = [];
   const chartFailuresLeft: Partial<Record<TimeFrame, number>> = {
     ...options.failChart,
   };
 
-  await page.route(BINANCE_URL, async (route: Route) => {
+  // REST: klines backfill.
+  await page.route(BINANCE_REST_URL, async (route: Route) => {
     const request = route.request();
     if (request.method() !== "GET") {
       await route.fallback();
       return;
     }
     const url = new URL(request.url());
-    const path = url.pathname;
+    if (url.pathname !== "/api/v3/klines") {
+      await route.fulfill(
+        failureResponse(404, `Unknown path: ${url.pathname}`),
+      );
+      return;
+    }
+    const interval = url.searchParams.get("interval") ?? "";
     const symbol = url.searchParams.get("symbol") ?? "";
-
-    if (path === "/api/v3/ticker/price") {
-      if (currentPriceFailuresLeft > 0) {
-        currentPriceFailuresLeft--;
-        await route.fulfill(
-          failureResponse(500, "simulated ticker/price failure"),
-        );
-        return;
-      }
-      const bundle = options.bySymbol?.[symbol] ?? options.defaultBundle;
-      if (!bundle) {
-        await route.fulfill(
-          failureResponse(500, "No mock bundle configured for ticker/price"),
-        );
-        return;
-      }
-      await route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify(tickerResponse(symbol, bundle)),
-      });
+    const timeFrame = INTERVAL_TO_TIMEFRAME[interval];
+    if (!timeFrame) {
+      await route.fulfill(
+        failureResponse(400, `unknown kline interval: ${interval}`),
+      );
       return;
     }
-
-    if (path === "/api/v3/klines") {
-      const interval = url.searchParams.get("interval") ?? "";
-      const timeFrame = INTERVAL_TO_TIMEFRAME[interval];
-      if (!timeFrame) {
-        await route.fulfill(
-          failureResponse(400, `unknown kline interval: ${interval}`),
-        );
-        return;
-      }
-      const remaining = chartFailuresLeft[timeFrame] ?? 0;
-      if (remaining > 0) {
-        chartFailuresLeft[timeFrame] = remaining - 1;
-        await route.fulfill(
-          failureResponse(500, `simulated klines ${timeFrame} failure`),
-        );
-        return;
-      }
-      const bundle = resolveBundle(options, symbol, timeFrame);
-      if (!bundle) {
-        await route.fulfill(
-          failureResponse(
-            500,
-            `No mock bundle configured for klines ${timeFrame}`,
-          ),
-        );
-        return;
-      }
-      await route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify(klinesResponse(bundle)),
-      });
+    const remaining = chartFailuresLeft[timeFrame] ?? 0;
+    if (remaining > 0) {
+      chartFailuresLeft[timeFrame] = remaining - 1;
+      await route.fulfill(
+        failureResponse(500, `simulated klines ${timeFrame} failure`),
+      );
       return;
     }
-
-    await route.fulfill(failureResponse(404, `Unknown path: ${path}`));
+    const bundle = resolveBundle(options, symbol, timeFrame);
+    if (!bundle) {
+      await route.fulfill(
+        failureResponse(
+          500,
+          `No mock bundle configured for klines ${symbol} ${timeFrame}`,
+        ),
+      );
+      return;
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify(klinesResponse(bundle)),
+    });
   });
+
+  // WebSocket: combined stream with SUBSCRIBE/UNSUBSCRIBE control frames.
+  // We don't forward to the real Binance server — the handler acts as
+  // the server and pushes mock messages directly.
+  await page.routeWebSocket(BINANCE_WS_URL, (ws: WebSocketRoute) => {
+    ws.onMessage((raw) => {
+      const text = typeof raw === "string" ? raw : raw.toString();
+      let parsed: { method?: string; params?: string[]; id?: number };
+      try {
+        parsed = JSON.parse(text);
+      } catch {
+        return;
+      }
+      if (parsed.method === "SUBSCRIBE" && Array.isArray(parsed.params)) {
+        subscribes.push({ method: "SUBSCRIBE", streams: parsed.params });
+        ws.send(JSON.stringify({ result: null, id: parsed.id ?? 0 }));
+        for (const stream of parsed.params) {
+          const match = /^([a-z0-9]+)@miniTicker$/.exec(stream);
+          if (!match) continue;
+          const symbol = match[1].toUpperCase();
+          const bundle = options.bySymbol?.[symbol] ?? options.defaultBundle;
+          if (!bundle) continue;
+          ws.send(JSON.stringify(miniTickerMessage(symbol, bundle)));
+        }
+      } else if (
+        parsed.method === "UNSUBSCRIBE" &&
+        Array.isArray(parsed.params)
+      ) {
+        subscribes.push({ method: "UNSUBSCRIBE", streams: parsed.params });
+        ws.send(JSON.stringify({ result: null, id: parsed.id ?? 0 }));
+      }
+    });
+  });
+
+  return { subscribes };
 }
 
 export function buildMonthSeries(

@@ -1,15 +1,19 @@
 import { expect, test } from "@playwright/test";
 import { buildMonthSeries, mockBinanceApi } from "./fixtures";
 
-// Deny-by-default fallback: any Binance request not explicitly mocked
-// by the test is aborted. Playwright's route order is LIFO, so the
-// per-test mock still wins.
+// Deny-by-default fallbacks: any Binance REST or WS traffic that a test
+// hasn't explicitly mocked is aborted. Playwright route order is LIFO,
+// so the per-test handlers registered inside `mockBinanceApi` win.
 test.beforeEach(async ({ page }) => {
   await page.route(/^https:\/\/api\.binance\.com\//, async (route) => {
     console.error(
-      `[e2e] unmocked Binance request: ${route.request().method()} ${route.request().url()}`,
+      `[e2e] unmocked Binance REST: ${route.request().method()} ${route.request().url()}`,
     );
     await route.abort("failed");
+  });
+  await page.routeWebSocket(/^wss:\/\/stream\.binance\.com/, (ws) => {
+    console.error(`[e2e] unmocked Binance WS: ${ws.url()}`);
+    ws.close();
   });
 });
 
@@ -28,7 +32,7 @@ const WEEK_BUNDLE = {
   chartPrices: buildMonthSeries(70000, 14),
 };
 
-test.describe("BTC price card", () => {
+test.describe("Price card", () => {
   test("renders current price and stats from the API", async ({ page }) => {
     await mockBinanceApi(page, { defaultBundle: DAY_BUNDLE });
 
@@ -75,7 +79,7 @@ test.describe("BTC price card", () => {
     expect(req).toBeTruthy();
   });
 
-  test("switches ticker and sends klines requests with the new symbol", async ({
+  test("switches ticker and subscribes to the new symbol's streams", async ({
     page,
   }) => {
     const ETH_BUNDLE = {
@@ -88,7 +92,7 @@ test.describe("BTC price card", () => {
       ],
     };
 
-    await mockBinanceApi(page, {
+    const mock = await mockBinanceApi(page, {
       defaultBundle: DAY_BUNDLE,
       bySymbol: { ETHUSDT: ETH_BUNDLE },
     });
@@ -116,12 +120,23 @@ test.describe("BTC price card", () => {
 
     await ethKlinesRequest;
     await expect(page.getByText("$2,500.25")).toBeVisible();
+
+    // The WS client must have subscribed to the ETH streams after the switch.
+    await expect
+      .poll(() =>
+        mock.subscribes.some(
+          (s) =>
+            s.method === "SUBSCRIBE" &&
+            s.streams.includes("ethusdt@miniTicker"),
+        ),
+      )
+      .toBe(true);
   });
 
   test("shows an error state for the chart and recovers on retry", async ({
     page,
   }) => {
-    // Fail the first klines request, then let the retry succeed.
+    // Fail the first klines backfill, then let the retry succeed.
     await mockBinanceApi(page, {
       defaultBundle: DAY_BUNDLE,
       failChart: { DAY: 1 },
