@@ -1,4 +1,5 @@
 import type { Page, Route, WebSocketRoute } from "@playwright/test";
+import { INTERVAL_TO_TIMEFRAME } from "../src/api/rest";
 import type { TimeFrame } from "../src/api/types";
 
 export type MockPricePoint = {
@@ -31,15 +32,6 @@ export type BinanceMockHandle = {
 
 const BINANCE_REST_URL = /^https:\/\/api\.binance\.com\//;
 const BINANCE_WS_URL = /^wss:\/\/stream\.binance\.com:9443\//;
-
-// Keep in sync with CHART_PARAMS in src/api/rest.ts.
-const INTERVAL_TO_TIMEFRAME: Record<string, TimeFrame> = {
-  "5m": "DAY",
-  "1h": "WEEK",
-  "4h": "MONTH",
-  "1d": "YEAR",
-  "1w": "ALL",
-};
 
 function klinesResponse(bundle: PriceBundleMock) {
   const sorted = [...bundle.chartPrices].sort(

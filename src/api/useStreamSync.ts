@@ -1,8 +1,9 @@
 import { useEffect } from "react";
 import { getDefaultStore, useAtomValue } from "jotai";
 
+import type { TickerSymbol } from "@/ticker/tickers";
 import type { ChartPrice, TimeFrame } from "./types";
-import { CHART_PARAMS, fetchKlines } from "./rest";
+import { CHART_PARAMS, INTERVAL_TO_TIMEFRAME, fetchKlines } from "./rest";
 import { getStreamClient, type StreamMessage } from "./stream";
 import {
   connectionStateAtom,
@@ -12,15 +13,7 @@ import {
   timeFrameAtom,
 } from "./atoms";
 
-const INTERVAL_TO_TIMEFRAME: Record<string, TimeFrame> = {
-  "5m": "DAY",
-  "1h": "WEEK",
-  "4h": "MONTH",
-  "1d": "YEAR",
-  "1w": "ALL",
-};
-
-function streamsFor(symbol: string, timeFrame: TimeFrame): string[] {
+function streamsFor(symbol: TickerSymbol, timeFrame: TimeFrame): string[] {
   const s = symbol.toLowerCase();
   return [`${s}@miniTicker`, `${s}@kline_${CHART_PARAMS[timeFrame].interval}`];
 }
@@ -57,6 +50,8 @@ function handleMessage(msg: StreamMessage): void {
   if (msg.data.s !== activeSymbol) return;
 
   if (msg.kind === "miniTicker") {
+    const existing = store.get(currentPriceAtom);
+    if (existing?.mid === msg.data.c) return;
     store.set(currentPriceAtom, {
       datetime: new Date(msg.data.E).toISOString(),
       mid: msg.data.c,
@@ -68,6 +63,10 @@ function handleMessage(msg: StreamMessage): void {
   if (INTERVAL_TO_TIMEFRAME[msg.data.k.i] !== activeTimeFrame) return;
   const current = store.get(klinesStateAtom);
   if (current.status !== "success") return; // wait for backfill
+  const latest = current.data[0];
+  const sameBar =
+    latest && new Date(msg.data.k.t).toISOString() === latest.datetime;
+  if (sameBar && latest.rate === msg.data.k.c) return;
   const { limit } = CHART_PARAMS[activeTimeFrame];
   store.set(klinesStateAtom, {
     status: "success",
@@ -86,7 +85,7 @@ function initStreamSync(): void {
 }
 
 function runBackfill(
-  symbol: string,
+  symbol: TickerSymbol,
   timeFrame: TimeFrame,
   controller: AbortController,
 ): void {
@@ -120,29 +119,25 @@ export function useStreamSync(): void {
     initStreamSync();
   }, []);
 
-  // Price follows the symbol. Clear stale data so the header doesn't
-  // flash the previous ticker's number during the switch.
   useEffect(() => {
+    // Clear stale price so the header doesn't flash the previous
+    // ticker's number while we wait for the first new miniTicker.
     getDefaultStore().set(currentPriceAtom, null);
-  }, [symbol]);
-
-  useEffect(() => {
+    const controller = new AbortController();
     const client = getStreamClient();
     const streams = streamsFor(symbol, timeFrame);
     client.subscribe(streams);
-    return () => client.unsubscribe(streams);
-  }, [symbol, timeFrame]);
-
-  useEffect(() => {
-    const controller = new AbortController();
     runBackfill(symbol, timeFrame, controller);
-    return () => controller.abort();
+    return () => {
+      controller.abort();
+      client.unsubscribe(streams);
+    };
   }, [symbol, timeFrame]);
 }
 
 /** Force-refetch the current (symbol, timeFrame) klines. */
 export function retryKlinesBackfill(
-  symbol: string,
+  symbol: TickerSymbol,
   timeFrame: TimeFrame,
 ): void {
   runBackfill(symbol, timeFrame, new AbortController());

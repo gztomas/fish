@@ -1,3 +1,4 @@
+import type { TickerSymbol } from "@/ticker/tickers";
 import type { ChartPrice, TimeFrame } from "./types";
 import { PriceApiError } from "./errors";
 
@@ -13,6 +14,13 @@ export const CHART_PARAMS: Record<
   YEAR: { interval: "1d", limit: 365 }, // 1y
   ALL: { interval: "1w", limit: 1000 }, // capped by Binance; returns what's available
 };
+
+export const INTERVAL_TO_TIMEFRAME: Record<string, TimeFrame> =
+  Object.fromEntries(
+    (Object.entries(CHART_PARAMS) as [TimeFrame, { interval: string }][]).map(
+      ([tf, { interval }]) => [interval, tf],
+    ),
+  );
 
 const REST_BASE = "https://api.binance.com";
 const REQUEST_TIMEOUT_MS = 15_000;
@@ -32,7 +40,7 @@ type BinanceKline = [
  * timeFrame) combination and then amended by the kline stream.
  */
 export async function fetchKlines(
-  symbol: string,
+  symbol: TickerSymbol,
   timeFrame: TimeFrame,
   signal?: AbortSignal,
 ): Promise<ChartPrice[]> {

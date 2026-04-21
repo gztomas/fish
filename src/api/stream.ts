@@ -152,9 +152,3 @@ export function getStreamClient(): BinanceStreamClient {
   if (!instance) instance = new BinanceStreamClient();
   return instance;
 }
-
-// For tests only — reset the singleton.
-export function __resetStreamClientForTests(): void {
-  instance?.close();
-  instance = null;
-}
