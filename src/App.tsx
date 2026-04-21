@@ -13,12 +13,9 @@ export default function App() {
       <header className="w-full border-b bg-card">
         <div className="mx-auto flex w-full max-w-4xl items-center justify-between px-8 py-4">
           <div className="flex items-center gap-2">
-            <img
-              src="/logo.svg"
-              alt=""
-              aria-hidden="true"
-              className="h-5 w-auto"
-            />
+            <span className="text-2xl leading-none" aria-hidden="true">
+              🐟
+            </span>
             <span className="text-2xl font-bold tracking-tight">fish</span>
           </div>
           <ThemeToggle />
