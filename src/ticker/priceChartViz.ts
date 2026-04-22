@@ -21,6 +21,7 @@ export type ChartMouseState = {
 };
 
 const TIME_FRAME_LABEL: Record<TimeFrame, string> = {
+  LIVE: "past hour",
   DAY: "past day",
   WEEK: "past week",
   MONTH: "past month",
