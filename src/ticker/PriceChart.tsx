@@ -1,17 +1,16 @@
 import { useRef } from "react";
+import { extent } from "d3-array";
 import {
   Area,
   AreaChart,
   CartesianGrid,
   ReferenceArea,
-  ReferenceDot,
-  ReferenceLine,
   XAxis,
   YAxis,
 } from "recharts";
 import type { ChartPrice, TimeFrame } from "@/api/types";
 import { ChartContainer, ChartTooltip, type ChartConfig } from "@/ui/chart";
-import { formatAxisDate, parseApiDatetime } from "./format";
+import { formatAxisDate } from "./format";
 import type { BrushRange, HoverPoint } from "./HoverDetail";
 import type { Ticker } from "./tickers";
 import {
@@ -22,11 +21,9 @@ import {
   Y_TICK_COUNT,
   type ChartDatum,
 } from "./priceChartViz";
-import type { ChartStats } from "./stats";
 
 export function PriceChart({
   points,
-  stats,
   timeFrame,
   ticker,
   brushRange,
@@ -34,7 +31,6 @@ export function PriceChart({
   onBrushChange,
 }: {
   points: ChartPrice[];
-  stats: ChartStats | null;
   timeFrame: TimeFrame;
   ticker: Ticker;
   brushRange: BrushRange | null;
@@ -43,27 +39,14 @@ export function PriceChart({
 }) {
   const dragStartRef = useRef<ChartDatum | null>(null);
 
-  const isPositive = (stats?.change ?? 0) >= 0;
-
-  const chartConfig = {
-    rate: {
-      label: `${ticker.shortName} price`,
-      color: isPositive ? "var(--color-chart-up)" : "var(--color-chart-down)",
-    },
-  } satisfies ChartConfig;
-
-  // Project the normalized API shape into numeric x/y for Recharts.
   // Points arrive newest-first, so we walk in reverse to land chronological.
   const data: ChartDatum[] = points.map((_, i) => {
     const p = points[points.length - 1 - i];
     return {
-      timestamp: parseApiDatetime(p.datetime),
+      timestamp: new Date(p.datetime).getTime(),
       rate: Number(p.rate),
     };
   });
-
-  const yStep = stats ? (stats.high - stats.low) / Y_TICK_COUNT : 1;
-  const yTickFormatter = buildCompactUsdFormatter(yStep, stats?.high ?? 0);
 
   if (data.length === 0) {
     return (
@@ -73,12 +56,25 @@ export function PriceChart({
     );
   }
 
+  const [minRate = 0, maxRate = 0] = extent(data, (d) => d.rate);
+  const isPositive = data[data.length - 1].rate >= data[0].rate;
+
+  const chartConfig = {
+    rate: {
+      label: `${ticker.shortName} price`,
+      color: isPositive ? "var(--color-chart-up)" : "var(--color-chart-down)",
+    },
+  } satisfies ChartConfig;
+
+  const yStep = (maxRate - minRate) / Y_TICK_COUNT;
+  const yTickFormatter = buildCompactUsdFormatter(yStep, maxRate);
+
   return (
     <ChartContainer
       config={chartConfig}
       className="aspect-auto h-56 w-full sm:h-80"
       role="img"
-      aria-label={buildChartAriaLabel(stats, timeFrame, ticker.name)}
+      aria-label={buildChartAriaLabel(timeFrame, ticker.name)}
       initialDimension={{ width: 800, height: 320 }}
     >
       <AreaChart
@@ -154,38 +150,6 @@ export function PriceChart({
             stroke="var(--color-rate)"
             strokeOpacity={0.4}
           />
-        )}
-        {stats && (
-          <>
-            <ReferenceLine
-              y={stats.high}
-              stroke="var(--muted-foreground)"
-              strokeDasharray="2 4"
-              strokeOpacity={0.5}
-            />
-            <ReferenceLine
-              y={stats.low}
-              stroke="var(--muted-foreground)"
-              strokeDasharray="2 4"
-              strokeOpacity={0.5}
-            />
-            <ReferenceDot
-              x={parseApiDatetime(stats.highPoint.datetime)}
-              y={stats.high}
-              r={4}
-              fill="var(--color-rate)"
-              stroke="var(--background)"
-              strokeWidth={2}
-            />
-            <ReferenceDot
-              x={parseApiDatetime(stats.lowPoint.datetime)}
-              y={stats.low}
-              r={4}
-              fill="var(--color-rate)"
-              stroke="var(--background)"
-              strokeWidth={2}
-            />
-          </>
         )}
         <Area
           type="monotone"

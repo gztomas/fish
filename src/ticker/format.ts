@@ -96,15 +96,3 @@ export function formatTooltipDate(
     year: "numeric",
   });
 }
-
-/**
- * The API adapter emits ISO-8601 UTC strings, but this helper also
- * tolerates inputs without a zone suffix by appending `Z`, so it stays
- * safe if a future upstream drops the suffix.
- */
-export function parseApiDatetime(datetime: string): number {
-  const normalized = /[zZ]|[+-]\d{2}:?\d{2}$/.test(datetime)
-    ? datetime
-    : `${datetime}Z`;
-  return new Date(normalized).getTime();
-}

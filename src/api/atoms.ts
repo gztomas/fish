@@ -5,7 +5,7 @@ import {
   isKnownSymbol,
   type TickerSymbol,
 } from "@/ticker/tickers";
-import { computeChartStats, computeLiveChartStats } from "@/ticker/stats";
+import { computeLiveChartStats } from "@/ticker/stats";
 import type { ChartPrice, Price, TimeFrame } from "./types";
 import type { ConnectionState } from "./stream";
 
@@ -88,11 +88,6 @@ export const klinesStateAtom = atom<AsyncState<ChartPrice[]>>({
 export const klinesDataAtom = atom((get) => {
   const s = get(klinesStateAtom);
   return s.status === "success" ? s.data : null;
-});
-
-export const chartStatsAtom = atom((get) => {
-  const data = get(klinesDataAtom);
-  return data ? computeChartStats(data) : null;
 });
 
 export const isOfflineAtom = atom(

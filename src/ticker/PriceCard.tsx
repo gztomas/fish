@@ -4,7 +4,6 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { Alert02Icon } from "@hugeicons/core-free-icons";
 
 import {
-  chartStatsAtom,
   currentPriceAtom,
   isOfflineAtom,
   isRefreshingAtom,
@@ -37,7 +36,6 @@ export function PriceCard() {
   const isOffline = useAtomValue(isOfflineAtom);
   const isRefreshing = useAtomValue(isRefreshingAtom);
   const klinesState = useAtomValue(klinesStateAtom);
-  const baseStats = useAtomValue(chartStatsAtom);
 
   const ticker = findTicker(symbol);
   const currentMid = currentPrice ? Number(currentPrice.mid) : null;
@@ -74,7 +72,6 @@ export function PriceCard() {
     chart = (
       <PriceChart
         points={klinesState.data}
-        stats={baseStats}
         timeFrame={timeFrame}
         ticker={ticker}
         brushRange={brushRange}

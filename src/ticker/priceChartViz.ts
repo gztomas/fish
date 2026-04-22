@@ -1,7 +1,6 @@
 import { formatPrefix, precisionPrefix } from "d3-format";
 import type { TimeFrame } from "@/api/types";
-import { formatPercentChange, formatUsd, getPriceDecimals } from "./format";
-import type { ChartStats } from "./stats";
+import { formatUsd, getPriceDecimals } from "./format";
 
 export type ChartDatum = {
   timestamp: number;
@@ -32,18 +31,10 @@ export const X_TICK_COUNT: Record<TimeFrame, number> = {
 };
 
 export function buildChartAriaLabel(
-  stats: ChartStats | null,
   timeFrame: TimeFrame,
   name: string,
 ): string {
-  const period = TIME_FRAME_LABEL[timeFrame];
-  if (!stats) return `${name} price chart, ${period}`;
-  const decimals = getPriceDecimals(stats.low);
-  return (
-    `${name} price chart, ${period}. ` +
-    `Range ${formatUsd(stats.low, decimals)} to ${formatUsd(stats.high, decimals)}. ` +
-    `Change ${formatPercentChange(stats.changeRatio)}.`
-  );
+  return `${name} price chart, ${TIME_FRAME_LABEL[timeFrame]}`;
 }
 
 // Compact "$71k" / "$71.2k" axis labels: precision adapts to the tick
