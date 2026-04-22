@@ -17,10 +17,9 @@ import type { Ticker } from "./tickers";
 import {
   buildChartAriaLabel,
   buildCompactUsdFormatter,
-  buildNiceYAxis,
-  buildXTicks,
   pointFromState,
   X_TICK_COUNT,
+  Y_TICK_COUNT,
   type ChartDatum,
 } from "./priceChartViz";
 import type { ChartStats } from "./stats";
@@ -63,12 +62,8 @@ export function PriceChart({
     };
   });
 
-  const { yDomain, yTicks, yStep } = buildNiceYAxis(stats);
-  const yTickFormatter = buildCompactUsdFormatter(yStep, yDomain[1]);
-  const xTicks = buildXTicks(
-    data.map((d) => d.timestamp),
-    X_TICK_COUNT[timeFrame],
-  );
+  const yStep = stats ? (stats.high - stats.low) / Y_TICK_COUNT : 1;
+  const yTickFormatter = buildCompactUsdFormatter(yStep, stats?.high ?? 0);
 
   if (data.length === 0) {
     return (
@@ -130,15 +125,15 @@ export function PriceChart({
           dataKey="timestamp"
           type="number"
           domain={["dataMin", "dataMax"]}
-          ticks={xTicks}
+          tickCount={X_TICK_COUNT[timeFrame]}
           tickFormatter={(v) => formatAxisDate(Number(v), timeFrame)}
           tickLine={false}
           axisLine={false}
           tick={{ fontSize: 12 }}
         />
         <YAxis
-          domain={yDomain}
-          ticks={yTicks}
+          domain={["auto", "auto"]}
+          tickCount={Y_TICK_COUNT}
           orientation="right"
           tickFormatter={(v) => yTickFormatter(Number(v))}
           tickLine={false}

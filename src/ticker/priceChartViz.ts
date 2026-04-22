@@ -1,5 +1,4 @@
 import { formatPrefix, precisionPrefix } from "d3-format";
-import { scaleLinear, scaleTime } from "d3-scale";
 import type { TimeFrame } from "@/api/types";
 import { formatPercentChange, formatUsd, getPriceDecimals } from "./format";
 import type { ChartStats } from "./stats";
@@ -47,23 +46,6 @@ export function buildChartAriaLabel(
   );
 }
 
-export function buildNiceYAxis(stats: ChartStats | null): {
-  yDomain: [number, number];
-  yTicks: number[];
-  yStep: number;
-} {
-  if (!stats) return { yDomain: [0, 0], yTicks: [], yStep: 1 };
-  // Tight domain so the plot fills the card; ticks come from a
-  // separate niced scale so the labels still land on round numbers.
-  const [low, high] = [stats.low, stats.high];
-  const tickScale = scaleLinear().domain([low, high]).nice(Y_TICK_COUNT);
-  const rawTicks = tickScale.ticks(Y_TICK_COUNT);
-  const step =
-    rawTicks.length >= 2 ? rawTicks[1] - rawTicks[0] : high - low || 1;
-  const yTicks = rawTicks.filter((t) => t > low && t < high);
-  return { yDomain: [low, high], yTicks, yStep: step };
-}
-
 // Compact "$71k" / "$71.2k" axis labels: precision adapts to the tick
 // step, and every label shares the same SI prefix so they line up.
 // For sub-dollar prices the SI-prefix trick picks "m" (milli) which
@@ -79,17 +61,6 @@ export function buildCompactUsdFormatter(
   const precision = Math.min(1, precisionPrefix(step, reference));
   const format = formatPrefix(`.${precision}~s`, reference);
   return (value) => `$${format(value)}`;
-}
-
-export function buildXTicks(timestamps: number[], count: number): number[] {
-  if (timestamps.length < 2) return [];
-  const min = timestamps[0];
-  const max = timestamps[timestamps.length - 1];
-  return scaleTime()
-    .domain([min, max])
-    .ticks(count)
-    .map((d) => d.valueOf())
-    .filter((t) => t > min && t < max);
 }
 
 export function pointFromState(
