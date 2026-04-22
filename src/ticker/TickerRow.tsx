@@ -46,11 +46,11 @@ export function TickerRow({ ticker }: { ticker: KnownTicker }) {
   // Keep the expanded content mounted for the duration of the grid-row
   // collapse animation so the height has something to interpolate from.
   const [isContentMounted, setIsContentMounted] = useState(isExpanded);
+  if (isExpanded && !isContentMounted) {
+    setIsContentMounted(true);
+  }
   useEffect(() => {
-    if (isExpanded) {
-      setIsContentMounted(true);
-      return;
-    }
+    if (isExpanded) return;
     const id = window.setTimeout(() => setIsContentMounted(false), 300);
     return () => window.clearTimeout(id);
   }, [isExpanded]);
