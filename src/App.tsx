@@ -22,9 +22,6 @@ export default function App() {
         </div>
       </header>
       <main className="mx-auto w-full max-w-2xl px-8 py-8">
-        <p className="mx-auto mb-8 max-w-md text-center font-heading text-base text-pretty">
-          Live crypto prices and history, at a glance.
-        </p>
         <PriceCard />
       </main>
     </div>
