@@ -49,7 +49,7 @@ export function PriceChart({
 
   if (data.length === 0) {
     return (
-      <div className="flex h-56 items-center justify-center text-sm text-muted-foreground sm:h-80">
+      <div className="flex h-40 items-center justify-center text-sm text-muted-foreground sm:h-52">
         No chart data available.
       </div>
     );
@@ -66,11 +66,15 @@ export function PriceChart({
 
   const yStep = (maxRate - minRate) / Y_TICK_COUNT;
   const format = buildCompactUsdFormatter(yStep, maxRate);
+  // 5% padding on each side so the min/max reference lines sit just
+  // inside the plot edges instead of being flush.
+  const yPad = (maxRate - minRate) * 0.05 || 1;
+  const yDomain: [number, number] = [minRate - yPad, maxRate + yPad];
 
   return (
     <ChartContainer
       config={chartConfig}
-      className="aspect-auto h-56 w-full sm:h-80"
+      className="aspect-auto h-40 w-full sm:h-52"
       role="img"
       aria-label={buildChartAriaLabel(timeFrame, ticker.name)}
       initialDimension={{ width: 800, height: 320 }}
@@ -120,7 +124,7 @@ export function PriceChart({
           domain={["dataMin", "dataMax"]}
           hide
         />
-        <YAxis domain={["auto", "auto"]} hide />
+        <YAxis domain={yDomain} hide />
         <ChartTooltip
           cursor={{ strokeDasharray: "4 4" }}
           content={() => null}

@@ -1,5 +1,5 @@
 import { useAtom, useAtomValue } from "jotai";
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
   Alert02Icon,
@@ -43,6 +43,18 @@ export function TickerRow({ ticker }: { ticker: KnownTicker }) {
   const [brushRange, setBrushRange] = useState<BrushRange | null>(null);
 
   const isExpanded = expanded === ticker.symbol;
+  // Keep the expanded content mounted for the duration of the grid-row
+  // collapse animation so the height has something to interpolate from.
+  const [isContentMounted, setIsContentMounted] = useState(isExpanded);
+  useEffect(() => {
+    if (isExpanded) {
+      setIsContentMounted(true);
+      return;
+    }
+    const id = window.setTimeout(() => setIsContentMounted(false), 300);
+    return () => window.clearTimeout(id);
+  }, [isExpanded]);
+
   const activeHover = isExpanded ? hoverPoint : null;
   const activeBrush = isExpanded ? brushRange : null;
 
@@ -100,7 +112,7 @@ export function TickerRow({ ticker }: { ticker: KnownTicker }) {
         )}
       >
         <div className="min-h-0 overflow-hidden">
-          {isExpanded && (
+          {isContentMounted && (
             <ExpandedChart
               ticker={ticker}
               timeFrame={timeFrame}
@@ -108,6 +120,7 @@ export function TickerRow({ ticker }: { ticker: KnownTicker }) {
               brushRange={brushRange}
               onHoverChange={setHoverPoint}
               onBrushChange={setBrushRange}
+              isExpanded={isExpanded}
             />
           )}
         </div>
@@ -214,6 +227,7 @@ function ExpandedChart({
   brushRange,
   onHoverChange,
   onBrushChange,
+  isExpanded,
 }: {
   ticker: KnownTicker;
   timeFrame: TimeFrame;
@@ -221,13 +235,23 @@ function ExpandedChart({
   brushRange: BrushRange | null;
   onHoverChange: (point: HoverPoint | null) => void;
   onBrushChange: (range: BrushRange | null) => void;
+  isExpanded: boolean;
 }) {
-  const klinesState = useAtomValue(klinesStateAtom);
+  const liveState = useAtomValue(klinesStateAtom);
+  // Stop following the atom once the row starts collapsing so the
+  // chart stays on screen for the 300ms grid transition; otherwise
+  // `useStreamSync` resets the atom to `idle` the moment we collapse
+  // and we'd flash a blank placeholder during the animation.
+  const [frozenState, setFrozenState] = useState(liveState);
+  if (isExpanded && frozenState !== liveState) {
+    setFrozenState(liveState);
+  }
+  const klinesState = isExpanded ? liveState : frozenState;
 
   return (
     <div className="space-y-4 px-6 pb-6">
       {klinesState.status === "error" ? (
-        <div className="flex h-80 flex-col items-center justify-center gap-3 rounded-lg border border-dashed text-sm text-muted-foreground">
+        <div className="flex h-40 flex-col items-center justify-center gap-3 rounded-lg border border-dashed text-sm text-muted-foreground sm:h-52">
           <HugeiconsIcon
             icon={Alert02Icon}
             className="size-6 text-destructive"
@@ -248,19 +272,21 @@ function ExpandedChart({
         </div>
       ) : klinesState.status !== "success" ? (
         <div
-          className="h-80 w-full animate-pulse rounded-lg bg-muted/60"
+          className="h-40 w-full sm:h-52"
           role="status"
           aria-label="Loading chart data"
         />
       ) : (
-        <PriceChart
-          points={klinesState.data}
-          timeFrame={timeFrame}
-          ticker={ticker}
-          brushRange={brushRange}
-          onHoverChange={onHoverChange}
-          onBrushChange={onBrushChange}
-        />
+        <div className="animate-in fade-in slide-in-from-bottom-6 duration-500">
+          <PriceChart
+            points={klinesState.data}
+            timeFrame={timeFrame}
+            ticker={ticker}
+            brushRange={brushRange}
+            onHoverChange={onHoverChange}
+            onBrushChange={onBrushChange}
+          />
+        </div>
       )}
 
       <TimeFrameSelector value={timeFrame} onChange={onTimeFrameChange} />
