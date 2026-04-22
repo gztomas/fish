@@ -31,7 +31,11 @@ export const TICKERS = [
   { symbol: "LTCUSDT", name: "Litecoin", shortName: "LTC", color: "#345D9D" },
 ] as const satisfies readonly Ticker[];
 
-export type TickerSymbol = (typeof TICKERS)[number]["symbol"];
+// Literal-typed view of TICKERS entries; use it instead of `Ticker`
+// when the symbol needs to flow into APIs that expect `TickerSymbol`
+// (e.g. atomFamily keys).
+export type KnownTicker = (typeof TICKERS)[number];
+export type TickerSymbol = KnownTicker["symbol"];
 
 export const DEFAULT_SYMBOL: TickerSymbol = "BTCUSDT";
 

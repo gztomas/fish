@@ -1,4 +1,4 @@
-import { PriceCard } from "@/ticker/PriceCard";
+import { TickerList } from "@/ticker/TickerList";
 import { ThemeToggle } from "@/theme/ThemeToggle";
 
 export default function App() {
@@ -22,7 +22,7 @@ export default function App() {
         </div>
       </header>
       <main className="mx-auto w-full max-w-2xl px-8 py-8">
-        <PriceCard />
+        <TickerList />
       </main>
     </div>
   );
