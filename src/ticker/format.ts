@@ -56,32 +56,17 @@ export function formatPercent(ratio: number): string {
   return percentUnsignedFormatter.format(ratio);
 }
 
-export function formatAxisDate(timestamp: number, timeFrame: string): string {
-  const date = new Date(timestamp);
-  switch (timeFrame) {
-    case "DAY":
-      return date.toLocaleTimeString("en-US", { hour: "numeric" });
-    case "WEEK":
-      return date.toLocaleDateString("en-US", { weekday: "short" });
-    case "MONTH":
-      return date.toLocaleDateString("en-US", {
-        month: "short",
-        day: "numeric",
-      });
-    case "YEAR":
-      return date.toLocaleDateString("en-US", { month: "short" });
-    case "ALL":
-      return date.toLocaleDateString("en-US", { year: "numeric" });
-    default:
-      return date.toLocaleDateString("en-US");
-  }
-}
-
 export function formatTooltipDate(
   timestamp: number,
   timeFrame: string,
 ): string {
   const date = new Date(timestamp);
+  if (timeFrame === "LIVE") {
+    return date.toLocaleTimeString("en-US", {
+      hour: "numeric",
+      minute: "2-digit",
+    });
+  }
   if (timeFrame === "DAY" || timeFrame === "WEEK") {
     return date.toLocaleString("en-US", {
       month: "short",

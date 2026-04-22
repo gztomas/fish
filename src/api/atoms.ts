@@ -15,6 +15,7 @@ export type AsyncState<T> =
   | { status: "error"; error: Error };
 
 const VALID_TIME_FRAMES: readonly TimeFrame[] = [
+  "LIVE",
   "DAY",
   "WEEK",
   "MONTH",

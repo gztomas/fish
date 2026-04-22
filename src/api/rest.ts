@@ -8,6 +8,7 @@ export const CHART_PARAMS: Record<
   TimeFrame,
   { interval: string; limit: number }
 > = {
+  LIVE: { interval: "1m", limit: 60 }, // 1h
   DAY: { interval: "5m", limit: 288 }, // 24h
   WEEK: { interval: "1h", limit: 168 }, // 7d
   MONTH: { interval: "4h", limit: 180 }, // 30d

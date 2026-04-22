@@ -7,6 +7,13 @@ export type ChartDatum = {
   rate: number;
 };
 
+export type HoverPoint = ChartDatum;
+
+export type BrushRange = {
+  start: HoverPoint;
+  end: HoverPoint;
+};
+
 export type ChartMouseState = {
   isTooltipActive?: boolean;
   activeTooltipIndex?: number | string | null;
@@ -22,13 +29,6 @@ const TIME_FRAME_LABEL: Record<TimeFrame, string> = {
 };
 
 export const Y_TICK_COUNT = 5;
-export const X_TICK_COUNT: Record<TimeFrame, number> = {
-  DAY: 6,
-  WEEK: 7,
-  MONTH: 8,
-  YEAR: 12,
-  ALL: 10,
-};
 
 export function buildChartAriaLabel(
   timeFrame: TimeFrame,

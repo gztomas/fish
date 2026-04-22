@@ -8,7 +8,7 @@
  * stats, header), so the rest of the app sees one consistent shape.
  */
 
-export type TimeFrame = "DAY" | "WEEK" | "MONTH" | "YEAR" | "ALL";
+export type TimeFrame = "LIVE" | "DAY" | "WEEK" | "MONTH" | "YEAR" | "ALL";
 
 export type Price = {
   datetime: string;

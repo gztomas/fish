@@ -3,23 +3,22 @@ import { extent } from "d3-array";
 import {
   Area,
   AreaChart,
-  CartesianGrid,
   ReferenceArea,
+  ReferenceLine,
   XAxis,
   YAxis,
 } from "recharts";
 import type { ChartPrice, TimeFrame } from "@/api/types";
 import { ChartContainer, ChartTooltip, type ChartConfig } from "@/ui/chart";
-import { formatAxisDate } from "./format";
-import type { BrushRange, HoverPoint } from "./HoverDetail";
 import type { Ticker } from "./tickers";
 import {
   buildChartAriaLabel,
   buildCompactUsdFormatter,
   pointFromState,
-  X_TICK_COUNT,
   Y_TICK_COUNT,
+  type BrushRange,
   type ChartDatum,
+  type HoverPoint,
 } from "./priceChartViz";
 
 export function PriceChart({
@@ -66,7 +65,7 @@ export function PriceChart({
   } satisfies ChartConfig;
 
   const yStep = (maxRate - minRate) / Y_TICK_COUNT;
-  const yTickFormatter = buildCompactUsdFormatter(yStep, maxRate);
+  const format = buildCompactUsdFormatter(yStep, maxRate);
 
   return (
     <ChartContainer
@@ -115,30 +114,40 @@ export function PriceChart({
             <stop offset="100%" stopColor="var(--color-rate)" stopOpacity={0} />
           </linearGradient>
         </defs>
-        <CartesianGrid vertical={false} strokeDasharray="4 4" />
         <XAxis
           dataKey="timestamp"
           type="number"
           domain={["dataMin", "dataMax"]}
-          tickCount={X_TICK_COUNT[timeFrame]}
-          tickFormatter={(v) => formatAxisDate(Number(v), timeFrame)}
-          tickLine={false}
-          axisLine={false}
-          tick={{ fontSize: 12 }}
+          hide
         />
-        <YAxis
-          domain={["auto", "auto"]}
-          tickCount={Y_TICK_COUNT}
-          orientation="right"
-          tickFormatter={(v) => yTickFormatter(Number(v))}
-          tickLine={false}
-          axisLine={false}
-          width={56}
-          tick={{ fontSize: 12 }}
-        />
+        <YAxis domain={["auto", "auto"]} hide />
         <ChartTooltip
           cursor={{ strokeDasharray: "4 4" }}
           content={() => null}
+        />
+        <ReferenceLine
+          y={maxRate}
+          stroke="var(--muted-foreground)"
+          strokeDasharray="2 4"
+          strokeOpacity={0.5}
+          label={{
+            value: format(maxRate),
+            position: "insideTopLeft",
+            fill: "var(--muted-foreground)",
+            fontSize: 12,
+          }}
+        />
+        <ReferenceLine
+          y={minRate}
+          stroke="var(--muted-foreground)"
+          strokeDasharray="2 4"
+          strokeOpacity={0.5}
+          label={{
+            value: format(minRate),
+            position: "insideBottomLeft",
+            fill: "var(--muted-foreground)",
+            fontSize: 12,
+          }}
         />
         {brushRange && (
           <ReferenceArea
