@@ -11,9 +11,9 @@ export type Ticker = {
 export const TICKERS = [
   { symbol: "BTCUSDT", name: "Bitcoin", shortName: "BTC", color: "#F7931A" },
   { symbol: "ETHUSDT", name: "Ethereum", shortName: "ETH", color: "#627EEA" },
-  { symbol: "SOLUSDT", name: "Solana", shortName: "SOL", color: "#9945FF" },
+  { symbol: "SOLUSDT", name: "Solana", shortName: "SOL", color: "#14F195" },
   { symbol: "BNBUSDT", name: "BNB", shortName: "BNB", color: "#F3BA2F" },
-  { symbol: "XRPUSDT", name: "XRP", shortName: "XRP", color: "#00AAE4" },
+  { symbol: "XRPUSDT", name: "XRP", shortName: "XRP", color: "#C8C8C8" },
   { symbol: "ADAUSDT", name: "Cardano", shortName: "ADA", color: "#0033AD" },
   {
     symbol: "AVAXUSDT",
@@ -28,7 +28,7 @@ export const TICKERS = [
     color: "#2A5ADA",
   },
   { symbol: "DOGEUSDT", name: "Dogecoin", shortName: "DOGE", color: "#C2A633" },
-  { symbol: "LTCUSDT", name: "Litecoin", shortName: "LTC", color: "#345D9D" },
+  { symbol: "LTCUSDT", name: "Litecoin", shortName: "LTC", color: "#A6A9AB" },
 ] as const satisfies readonly Ticker[];
 
 // Literal-typed view of TICKERS entries; use it instead of `Ticker`
