@@ -2,21 +2,33 @@ export type Ticker = {
   symbol: string;
   name: string;
   shortName: string;
+  color: string;
 };
 
 // Curated list of liquid USDT pairs on Binance Spot. USDT trades close
-// enough to USD that the currency formatter reads naturally.
+// enough to USD that the currency formatter reads naturally. `color` is
+// the coin's brand hex, used as the chart's accent.
 export const TICKERS = [
-  { symbol: "BTCUSDT", name: "Bitcoin", shortName: "BTC" },
-  { symbol: "ETHUSDT", name: "Ethereum", shortName: "ETH" },
-  { symbol: "SOLUSDT", name: "Solana", shortName: "SOL" },
-  { symbol: "BNBUSDT", name: "BNB", shortName: "BNB" },
-  { symbol: "XRPUSDT", name: "XRP", shortName: "XRP" },
-  { symbol: "ADAUSDT", name: "Cardano", shortName: "ADA" },
-  { symbol: "AVAXUSDT", name: "Avalanche", shortName: "AVAX" },
-  { symbol: "LINKUSDT", name: "Chainlink", shortName: "LINK" },
-  { symbol: "DOGEUSDT", name: "Dogecoin", shortName: "DOGE" },
-  { symbol: "LTCUSDT", name: "Litecoin", shortName: "LTC" },
+  { symbol: "BTCUSDT", name: "Bitcoin", shortName: "BTC", color: "#F7931A" },
+  { symbol: "ETHUSDT", name: "Ethereum", shortName: "ETH", color: "#627EEA" },
+  { symbol: "SOLUSDT", name: "Solana", shortName: "SOL", color: "#9945FF" },
+  { symbol: "BNBUSDT", name: "BNB", shortName: "BNB", color: "#F3BA2F" },
+  { symbol: "XRPUSDT", name: "XRP", shortName: "XRP", color: "#00AAE4" },
+  { symbol: "ADAUSDT", name: "Cardano", shortName: "ADA", color: "#0033AD" },
+  {
+    symbol: "AVAXUSDT",
+    name: "Avalanche",
+    shortName: "AVAX",
+    color: "#E84142",
+  },
+  {
+    symbol: "LINKUSDT",
+    name: "Chainlink",
+    shortName: "LINK",
+    color: "#2A5ADA",
+  },
+  { symbol: "DOGEUSDT", name: "Dogecoin", shortName: "DOGE", color: "#C2A633" },
+  { symbol: "LTCUSDT", name: "Litecoin", shortName: "LTC", color: "#345D9D" },
 ] as const satisfies readonly Ticker[];
 
 export type TickerSymbol = (typeof TICKERS)[number]["symbol"];

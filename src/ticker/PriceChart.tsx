@@ -57,12 +57,11 @@ export function PriceChart({
   }
 
   const [minRate = 0, maxRate = 0] = extent(data, (d) => d.rate);
-  const isPositive = data[data.length - 1].rate >= data[0].rate;
 
   const chartConfig = {
     rate: {
       label: `${ticker.shortName} price`,
-      color: isPositive ? "var(--color-chart-up)" : "var(--color-chart-down)",
+      color: ticker.color,
     },
   } satisfies ChartConfig;
 
