@@ -77,7 +77,7 @@ export function TickerRow({ ticker }: { ticker: KnownTicker }) {
         onClick={() => setExpanded(isExpanded ? null : ticker.symbol)}
         aria-expanded={isExpanded}
         className={cn(
-          "grid w-full grid-cols-[minmax(0,1fr)_6rem_8rem] items-center gap-4 px-6 py-4 text-left transition-colors",
+          "grid w-full grid-cols-[minmax(0,1fr)_8rem] items-center gap-4 px-6 py-4 text-left transition-colors sm:grid-cols-[minmax(0,1fr)_6rem_8rem]",
           "hover:bg-muted/40 focus-visible:bg-muted/40 focus-visible:outline-none",
         )}
       >
@@ -97,7 +97,7 @@ export function TickerRow({ ticker }: { ticker: KnownTicker }) {
           points={sparklinePoints}
           color={ticker.color}
           className={cn(
-            "pointer-events-none h-7 w-24 justify-self-end transition-opacity duration-300",
+            "pointer-events-none hidden h-7 w-24 justify-self-end transition-opacity duration-300 sm:block",
             isExpanded && "opacity-0",
           )}
         />

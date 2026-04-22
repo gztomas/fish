@@ -37,7 +37,7 @@ export default function App() {
           </div>
         </div>
       </header>
-      <main className="mx-auto w-full max-w-2xl px-8 py-8">
+      <main className="mx-auto w-full max-w-2xl py-8 sm:px-8">
         <TickerList />
       </main>
     </div>
