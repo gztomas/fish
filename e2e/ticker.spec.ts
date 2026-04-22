@@ -32,23 +32,44 @@ const WEEK_BUNDLE = {
   chartPrices: buildMonthSeries(70000, 14),
 };
 
-test.describe("Price card", () => {
-  test("renders current price and stats from the API", async ({ page }) => {
+test.describe("Ticker list", () => {
+  test("renders a row per ticker with a live price", async ({ page }) => {
     await mockBinanceApi(page, { defaultBundle: DAY_BUNDLE });
 
     await page.goto("/");
 
-    await expect(page.getByText("$71,234.56")).toBeVisible();
+    // A row per curated ticker is rendered.
+    await expect(page.getByText("Bitcoin")).toBeVisible();
+    await expect(page.getByText("Ethereum")).toBeVisible();
+    await expect(page.getByText("Solana")).toBeVisible();
 
-    // High, Low, Range, and Volatility all appear in the stats panel.
-    await expect(page.getByText("$72,500.00")).toBeVisible();
-    await expect(page.getByText("$69,500.00")).toBeVisible();
-    await expect(page.getByText("$3,000.00")).toBeVisible();
-    await expect(page.getByText("4.32%")).toBeVisible();
-    await expect(page.getByLabel("Live")).toBeVisible();
+    // The kline WS push populates each row's priceAtom. With the shared
+    // default bundle every row shows the same number, so scope the
+    // assertion to the Bitcoin row.
+    const btcRow = page.getByRole("button", { name: /Bitcoin/ });
+    await expect(btcRow.getByText("$71,234.56")).toBeVisible();
   });
 
-  test("sends a klines request with the selected interval when switching tabs", async ({
+  test("expanding a row reveals its chart and timeframe selector", async ({
+    page,
+  }) => {
+    await mockBinanceApi(page, { defaultBundle: DAY_BUNDLE });
+
+    await page.goto("/");
+    const btcRow = page.getByRole("button", { name: /Bitcoin/ });
+    await expect(btcRow).toHaveAttribute("aria-expanded", "false");
+
+    await btcRow.click();
+
+    await expect(btcRow).toHaveAttribute("aria-expanded", "true");
+    // The timeframe selector is only rendered inside the expanded panel.
+    await expect(page.getByRole("tab", { name: "1D" })).toBeVisible();
+    await expect(
+      page.getByRole("img", { name: /Bitcoin price chart/ }),
+    ).toBeVisible();
+  });
+
+  test("changing the timeframe fetches klines with the new interval", async ({
     page,
   }) => {
     await mockBinanceApi(page, {
@@ -56,7 +77,10 @@ test.describe("Price card", () => {
       defaultBundle: DAY_BUNDLE,
     });
 
-    const weekChartRequestPromise = page.waitForRequest((req) => {
+    // Start with BTC already expanded via the URL param.
+    await page.goto("/?ticker=btcusdt");
+
+    const weekRequest = page.waitForRequest((req) => {
       if (req.method() !== "GET") return false;
       let url: URL;
       try {
@@ -67,91 +91,37 @@ test.describe("Price card", () => {
       return (
         url.hostname === "api.binance.com" &&
         url.pathname === "/api/v3/klines" &&
+        url.searchParams.get("symbol") === "BTCUSDT" &&
         url.searchParams.get("interval") === "1h"
       );
     });
 
-    await page.goto("/");
-    await expect(page.getByText("$71,234.56")).toBeVisible();
-
     await page.getByRole("tab", { name: "1W" }).click();
-    const req = await weekChartRequestPromise;
-    expect(req).toBeTruthy();
+    await weekRequest;
   });
 
-  test("switches ticker and subscribes to the new symbol's streams", async ({
+  test("shows the chart error state and recovers on retry", async ({
     page,
   }) => {
-    const ETH_BUNDLE = {
-      currentMid: 2500.25,
-      chartPrices: [
-        { datetime: "2026-04-13T08:00:00.000000", rate: 2480 },
-        { datetime: "2026-04-13T09:00:00.000000", rate: 2520 },
-        { datetime: "2026-04-13T10:00:00.000000", rate: 2510 },
-        { datetime: "2026-04-13T11:00:00.000000", rate: 2500 },
-      ],
-    };
-
-    const mock = await mockBinanceApi(page, {
-      defaultBundle: DAY_BUNDLE,
-      bySymbol: { ETHUSDT: ETH_BUNDLE },
-    });
-
-    const ethKlinesRequest = page.waitForRequest((req) => {
-      if (req.method() !== "GET") return false;
-      let url: URL;
-      try {
-        url = new URL(req.url());
-      } catch {
-        return false;
-      }
-      return (
-        url.hostname === "api.binance.com" &&
-        url.pathname === "/api/v3/klines" &&
-        url.searchParams.get("symbol") === "ETHUSDT"
-      );
-    });
-
-    await page.goto("/");
-    await expect(page.getByText("$71,234.56")).toBeVisible();
-
-    await page.getByLabel("Select ticker").click();
-    await page.getByRole("option", { name: /Ethereum/ }).click();
-
-    await ethKlinesRequest;
-    await expect(page.getByText("$2,500.25")).toBeVisible();
-
-    // The WS client must have subscribed to the ETH streams after the switch.
-    await expect
-      .poll(() =>
-        mock.subscribes.some(
-          (s) =>
-            s.method === "SUBSCRIBE" &&
-            s.streams.includes("ethusdt@miniTicker"),
-        ),
-      )
-      .toBe(true);
-  });
-
-  test("shows an error state for the chart and recovers on retry", async ({
-    page,
-  }) => {
-    // Fail the first klines backfill, then let the retry succeed.
+    // Fail the first 1h (WEEK) klines call so the sparklines (5m) load
+    // cleanly but the big chart errors out when we switch to 1W.
     await mockBinanceApi(page, {
+      bundles: { DAY: DAY_BUNDLE, WEEK: WEEK_BUNDLE },
       defaultBundle: DAY_BUNDLE,
-      failChart: { DAY: 1 },
+      failChart: { WEEK: 1 },
     });
 
     await page.goto("/");
+    await page.getByRole("button", { name: /Bitcoin/ }).click();
+    await page.getByRole("tab", { name: "1W" }).click();
 
-    await expect(page.getByText("$71,234.56")).toBeVisible();
     await expect(page.getByText("Couldn't load price data")).toBeVisible();
 
     await page.getByRole("button", { name: /try again/i }).click();
 
     await expect(page.getByText("Couldn't load price data")).not.toBeVisible();
-    // Match on the low so we pin the assertion to the stats panel
-    // rather than whatever the chart tooltip happens to be hovering.
-    await expect(page.getByText("$69,500.00")).toBeVisible();
+    await expect(
+      page.getByRole("img", { name: /Bitcoin price chart/ }),
+    ).toBeVisible();
   });
 });

@@ -85,14 +85,31 @@ function resolveBundle(
   );
 }
 
-function miniTickerMessage(symbol: string, bundle: PriceBundleMock) {
+function klineMessage(
+  stream: string,
+  symbol: string,
+  interval: string,
+  bundle: PriceBundleMock,
+) {
+  const now = Date.now();
+  const price = bundle.currentMid.toFixed(2);
   return {
-    stream: `${symbol.toLowerCase()}@miniTicker`,
+    stream,
     data: {
-      e: "24hrMiniTicker",
-      E: Date.now(),
+      e: "kline",
+      E: now,
       s: symbol,
-      c: bundle.currentMid.toFixed(2),
+      k: {
+        t: now,
+        T: now + 1,
+        s: symbol,
+        i: interval,
+        o: price,
+        c: price,
+        h: price,
+        l: price,
+        x: false,
+      },
     },
   };
 }
@@ -155,8 +172,9 @@ export async function mockBinanceApi(
   });
 
   // WebSocket: combined stream with SUBSCRIBE/UNSUBSCRIBE control frames.
-  // We don't forward to the real Binance server — the handler acts as
-  // the server and pushes mock messages directly.
+  // The app only subscribes to `<symbol>@kline_<interval>` streams now; on
+  // SUBSCRIBE we push a single kline with the bundle's currentMid as close
+  // so each row's priceAtom gets a value.
   await page.routeWebSocket(BINANCE_WS_URL, (ws: WebSocketRoute) => {
     ws.onMessage((raw) => {
       const text = typeof raw === "string" ? raw : raw.toString();
@@ -170,12 +188,17 @@ export async function mockBinanceApi(
         subscribes.push({ method: "SUBSCRIBE", streams: parsed.params });
         ws.send(JSON.stringify({ result: null, id: parsed.id ?? 0 }));
         for (const stream of parsed.params) {
-          const match = /^([a-z0-9]+)@miniTicker$/.exec(stream);
+          const match = /^([a-z0-9]+)@kline_([a-z0-9]+)$/.exec(stream);
           if (!match) continue;
           const symbol = match[1].toUpperCase();
-          const bundle = options.bySymbol?.[symbol] ?? options.defaultBundle;
+          const interval = match[2];
+          const timeFrame = INTERVAL_TO_TIMEFRAME[interval];
+          if (!timeFrame) continue;
+          const bundle = resolveBundle(options, symbol, timeFrame);
           if (!bundle) continue;
-          ws.send(JSON.stringify(miniTickerMessage(symbol, bundle)));
+          ws.send(
+            JSON.stringify(klineMessage(stream, symbol, interval, bundle)),
+          );
         }
       } else if (
         parsed.method === "UNSUBSCRIBE" &&
