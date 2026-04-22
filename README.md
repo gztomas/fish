@@ -5,6 +5,8 @@ are listed at once with live prices and 24h sparklines; tap any row to
 expand a full chart with selectable time frames. Sub-second updates
 over WebSocket, zero sign-up. Powered by the public Binance APIs.
 
+**[Live demo → fish.gztomas.dev](https://fish.gztomas.dev)**
+
 ![screenshot](./docs/screenshot.png)
 
 ## Features
