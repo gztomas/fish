@@ -33,8 +33,9 @@ export function Sparkline({
             dataKey="rate"
             stroke={color}
             strokeWidth={1.5}
-            fill={color}
-            fillOpacity={0.15}
+            fill="none"
+            dot={false}
+            activeDot={false}
             isAnimationActive={false}
           />
         </AreaChart>

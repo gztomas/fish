@@ -66,15 +66,19 @@ export function TickerRow({ ticker }: { ticker: KnownTicker }) {
   const decimals = getPriceDecimals(reference);
 
   return (
-    <div className="border-b last:border-b-0">
+    <div
+      className={cn(
+        "relative transition-colors last:after:hidden after:pointer-events-none after:absolute after:inset-x-0 after:bottom-0 after:h-px after:bg-linear-to-r after:from-transparent after:via-border after:to-transparent",
+        isExpanded && "bg-muted/30",
+      )}
+    >
       <button
         type="button"
         onClick={() => setExpanded(isExpanded ? null : ticker.symbol)}
         aria-expanded={isExpanded}
         className={cn(
-          "grid w-full grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-4 px-6 py-4 text-left transition-colors",
+          "grid w-full grid-cols-[minmax(0,1fr)_6rem_8rem] items-center gap-4 px-6 py-4 text-left transition-colors",
           "hover:bg-muted/40 focus-visible:bg-muted/40 focus-visible:outline-none",
-          isExpanded && "bg-muted/30",
         )}
       >
         <div className="flex min-w-0 items-center gap-3">
@@ -89,6 +93,15 @@ export function TickerRow({ ticker }: { ticker: KnownTicker }) {
           </div>
         </div>
 
+        <Sparkline
+          points={sparklinePoints}
+          color={ticker.color}
+          className={cn(
+            "pointer-events-none h-7 w-24 justify-self-end transition-opacity duration-300",
+            isExpanded && "opacity-0",
+          )}
+        />
+
         <RowValue
           currentMid={currentMid}
           decimals={decimals}
@@ -96,12 +109,6 @@ export function TickerRow({ ticker }: { ticker: KnownTicker }) {
           hover={activeHover}
           brush={activeBrush}
           timeFrame={timeFrame}
-        />
-
-        <Sparkline
-          points={sparklinePoints}
-          color={ticker.color}
-          className="h-10 w-24"
         />
       </button>
 

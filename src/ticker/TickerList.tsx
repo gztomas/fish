@@ -1,5 +1,4 @@
 import { useStreamSync } from "@/api/useStreamSync";
-import { Card } from "@/ui/card";
 
 import { TickerRow } from "./TickerRow";
 import { TICKERS } from "./tickers";
@@ -7,10 +6,10 @@ import { TICKERS } from "./tickers";
 export function TickerList() {
   useStreamSync();
   return (
-    <Card className="w-full overflow-hidden py-0 gap-0">
+    <div className="w-full">
       {TICKERS.map((ticker) => (
         <TickerRow key={ticker.symbol} ticker={ticker} />
       ))}
-    </Card>
+    </div>
   );
 }
