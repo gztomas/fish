@@ -21,6 +21,31 @@ import {
   type HoverPoint,
 } from "./priceChartViz";
 
+// yPad is 5% on each side, so the min/max lines sit at 0.05/1.1 of the plot
+// height from the top and bottom edges.
+const CURSOR_INSET_RATIO = 0.05 / 1.1;
+
+function ClampedCursor({
+  points,
+}: {
+  points?: Array<{ x: number; y: number }>;
+}) {
+  if (!points || points.length < 2) return null;
+  const [top, bottom] = points;
+  const inset = (bottom.y - top.y) * CURSOR_INSET_RATIO;
+  return (
+    <line
+      x1={top.x}
+      x2={top.x}
+      y1={top.y + inset}
+      y2={bottom.y - inset}
+      stroke="var(--foreground)"
+      strokeOpacity={0.7}
+      strokeWidth={1}
+    />
+  );
+}
+
 export function PriceChart({
   points,
   timeFrame,
@@ -81,7 +106,7 @@ export function PriceChart({
     >
       <AreaChart
         data={data}
-        margin={{ top: 16, right: 0, left: 0, bottom: 0 }}
+        margin={{ top: 16, right: 0, left: 0, bottom: 16 }}
         onMouseDown={(state) => {
           const p = pointFromState(state, data);
           if (p) dragStartRef.current = p;
@@ -125,10 +150,7 @@ export function PriceChart({
           hide
         />
         <YAxis domain={yDomain} hide />
-        <ChartTooltip
-          cursor={{ strokeDasharray: "4 4" }}
-          content={() => null}
-        />
+        <ChartTooltip cursor={<ClampedCursor />} content={() => null} />
         <ReferenceLine
           y={maxRate}
           stroke="var(--muted-foreground)"
@@ -136,7 +158,7 @@ export function PriceChart({
           strokeOpacity={0.5}
           label={{
             value: format(maxRate),
-            position: "insideTopLeft",
+            position: "insideBottomLeft",
             fill: "var(--muted-foreground)",
             fontSize: 12,
           }}
@@ -148,7 +170,7 @@ export function PriceChart({
           strokeOpacity={0.5}
           label={{
             value: format(minRate),
-            position: "insideBottomLeft",
+            position: "insideTopLeft",
             fill: "var(--muted-foreground)",
             fontSize: 12,
           }}
