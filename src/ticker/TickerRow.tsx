@@ -77,7 +77,7 @@ export function TickerRow({ ticker }: { ticker: KnownTicker }) {
         onClick={() => setExpanded(isExpanded ? null : ticker.symbol)}
         aria-expanded={isExpanded}
         className={cn(
-          "grid w-full grid-cols-[minmax(0,1fr)_8rem] items-center gap-4 px-6 py-4 text-left transition-colors sm:grid-cols-[minmax(0,1fr)_6rem_8rem]",
+          "grid min-h-17 w-full grid-cols-[minmax(0,1fr)_8rem] items-center gap-4 px-6 py-4 text-left transition-colors sm:grid-cols-[minmax(0,1fr)_6rem_8rem]",
           "hover:bg-muted/40 focus-visible:bg-muted/40 focus-visible:outline-none",
         )}
       >
@@ -109,6 +109,7 @@ export function TickerRow({ ticker }: { ticker: KnownTicker }) {
           hover={activeHover}
           brush={activeBrush}
           timeFrame={timeFrame}
+          hoverColor={ticker.color}
         />
       </button>
 
@@ -143,6 +144,7 @@ function RowValue({
   hover,
   brush,
   timeFrame,
+  hoverColor,
 }: {
   currentMid: number | null;
   decimals: number;
@@ -150,6 +152,7 @@ function RowValue({
   hover: HoverPoint | null;
   brush: BrushRange | null;
   timeFrame: TimeFrame;
+  hoverColor: string;
 }) {
   let top: ReactNode;
   let bottom: ReactNode;
@@ -180,7 +183,10 @@ function RowValue({
     );
   } else if (hover) {
     top = (
-      <span className="text-base font-semibold leading-none tabular-nums">
+      <span
+        className="text-base font-semibold leading-none tabular-nums"
+        style={{ color: hoverColor }}
+      >
         {formatUsd(hover.rate, decimals)}
       </span>
     );
@@ -216,12 +222,28 @@ function RowValue({
           {formatPercentChange(dayStats.changeRatio)}
         </span>
       );
+    } else {
+      bottom = (
+        <span
+          aria-hidden="true"
+          className="invisible text-xs font-medium tabular-nums"
+        >
+          0
+        </span>
+      );
     }
   }
 
   return (
     <div className="flex flex-col items-end gap-1">
-      {top}
+      <div
+        className={cn(
+          "origin-right transition-transform duration-150 ease-out",
+          hover && !brush && "scale-110",
+        )}
+      >
+        {top}
+      </div>
       {bottom}
     </div>
   );
