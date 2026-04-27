@@ -67,8 +67,9 @@ export function TickerRow({ ticker }: { ticker: KnownTicker }) {
 
   return (
     <div
+      data-ticker-row
       className={cn(
-        "relative transition-colors last:after:hidden after:pointer-events-none after:absolute after:inset-x-0 after:bottom-0 after:h-px after:bg-linear-to-r after:from-transparent after:via-border after:to-transparent",
+        "ticker-divider relative transition-colors",
         isExpanded && "bg-muted/30",
       )}
     >

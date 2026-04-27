@@ -128,6 +128,32 @@
   --radius-xl: calc(var(--radius) + 4px);
 }
 
+@layer components {
+  .ticker-divider::after {
+    content: "";
+    position: absolute;
+    inset-inline: 0;
+    bottom: 0;
+    height: 1px;
+    pointer-events: none;
+    background:
+      radial-gradient(
+        circle at var(--pointer-x, 50%) 50%,
+        color-mix(
+            in oklch,
+            var(--ring) calc(var(--pointer-proximity, 0) * 100%),
+            transparent
+          )
+          0%,
+        transparent 140px
+      ),
+      linear-gradient(to right, transparent, var(--border), transparent);
+  }
+  .ticker-divider:last-of-type::after {
+    display: none;
+  }
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
