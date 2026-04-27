@@ -109,6 +109,12 @@ function seedSparklines(): void {
     fetchKlines(symbol, SPARKLINE_TIMEFRAME)
       .then((data) => {
         store.set(sparklineAtomFamily(symbol), { status: "success", data });
+        if (data.length > 0 && !store.get(priceAtomFamily(symbol))) {
+          store.set(priceAtomFamily(symbol), {
+            datetime: data[0].datetime,
+            mid: data[0].rate,
+          });
+        }
       })
       .catch((error: unknown) => {
         store.set(sparklineAtomFamily(symbol), {
