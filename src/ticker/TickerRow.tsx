@@ -3,6 +3,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
   Alert02Icon,
+  ArrowDown01Icon,
   ArrowDownRight01Icon,
   ArrowUpRight01Icon,
 } from "@hugeicons/core-free-icons";
@@ -78,16 +79,28 @@ export function TickerRow({ ticker }: { ticker: KnownTicker }) {
         onClick={() => setExpanded(isExpanded ? null : ticker.symbol)}
         aria-expanded={isExpanded}
         className={cn(
-          "grid min-h-17 w-full grid-cols-[minmax(0,1fr)_8rem] items-center gap-4 px-6 py-4 text-left transition-colors sm:grid-cols-[minmax(0,1fr)_6rem_8rem]",
-          "hover:bg-muted/40 focus-visible:bg-muted/40 focus-visible:outline-none",
+          "group grid min-h-17 w-full grid-cols-[minmax(0,1fr)_8rem] items-center gap-4 px-6 py-4 text-left transition-colors sm:grid-cols-[minmax(0,1fr)_6rem_8rem]",
+          "focus-visible:bg-muted/40 focus-visible:outline-none",
         )}
       >
         <div className="flex min-w-0 items-center gap-3">
           <CoinIcon ticker={ticker} className="size-8 shrink-0" />
           <div className="flex min-w-0 flex-col">
-            <span className="truncate text-base font-semibold leading-tight">
-              {ticker.name}
-            </span>
+            <div className="flex min-w-0 items-center gap-1.5">
+              <span className="truncate text-base font-semibold leading-tight">
+                {ticker.name}
+              </span>
+              <HugeiconsIcon
+                icon={ArrowDown01Icon}
+                className={cn(
+                  "size-4 shrink-0 text-muted-foreground transition duration-200",
+                  isExpanded
+                    ? "rotate-180 opacity-100"
+                    : "-translate-y-1 opacity-0 group-hover:translate-y-0 group-hover:opacity-100",
+                )}
+                aria-hidden
+              />
+            </div>
             <span className="text-xs uppercase tracking-wider text-muted-foreground">
               {ticker.shortName}
             </span>
