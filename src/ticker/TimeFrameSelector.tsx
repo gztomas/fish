@@ -1,5 +1,6 @@
 import type { TimeFrame } from "@/api/types";
 import { cn } from "@/ui/cn";
+import styles from "./TimeFrameSelector.module.css";
 
 const TIME_FRAMES: { value: TimeFrame; label: string }[] = [
   { value: "LIVE", label: "LIVE" },
@@ -21,7 +22,10 @@ export function TimeFrameSelector({
     <div
       role="tablist"
       aria-label="Chart time frame"
-      className="flex w-full items-center justify-between gap-1"
+      className={cn(
+        styles.selector,
+        "flex w-full items-center justify-between gap-1",
+      )}
     >
       {TIME_FRAMES.map((frame) => {
         const active = frame.value === value;
@@ -33,10 +37,11 @@ export function TimeFrameSelector({
             aria-selected={active}
             onClick={() => onChange(frame.value)}
             className={cn(
-              "inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 text-sm font-medium transition-colors",
-              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50",
+              styles.tab,
+              "relative z-1 inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 text-sm font-medium transition-colors",
+              "focus-visible:outline-none",
               active
-                ? "bg-muted text-foreground"
+                ? "text-foreground"
                 : "text-muted-foreground hover:text-foreground",
             )}
           >

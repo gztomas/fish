@@ -1,0 +1,40 @@
+.selector {
+  position: relative;
+}
+
+.tab[aria-selected="true"] {
+  anchor-name: --tf-pill;
+}
+
+.tab:focus-visible {
+  outline: 2px solid color-mix(in oklch, var(--ring) 50%, transparent);
+  outline-offset: 2px;
+}
+
+.selector::before {
+  content: "";
+  position: absolute;
+  position-anchor: --tf-pill;
+  left: anchor(left);
+  top: anchor(top);
+  width: anchor-size(width);
+  height: anchor-size(height);
+  border-radius: 9999px;
+  background: var(--muted);
+  pointer-events: none;
+  z-index: 0;
+  transition:
+    left 0.4s cubic-bezier(0.34, 1.4, 0.64, 1),
+    top 0.4s cubic-bezier(0.34, 1.4, 0.64, 1),
+    width 0.4s cubic-bezier(0.34, 1.4, 0.64, 1),
+    height 0.4s cubic-bezier(0.34, 1.4, 0.64, 1);
+}
+
+@supports not (anchor-name: --x) {
+  .selector::before {
+    display: none;
+  }
+  .tab[aria-selected="true"] {
+    background: var(--muted);
+  }
+}
